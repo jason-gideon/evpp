@@ -9,6 +9,9 @@
 
 namespace evpp {
 
+
+
+  //这里是对应Memchaed中的 notify_recv_fd
 EventWatcher::EventWatcher(struct event_base* evbase, const Handler& handler)
     : evbase_(evbase), attached_(false), handler_(handler) {
     event_ = new event;
@@ -44,6 +47,8 @@ void EventWatcher::Close() {
     DoClose();
 }
 
+//这里的warch实际上是将event加入到lebevent中携带时间
+//就是封装了event_add
 bool EventWatcher::Watch(Duration timeout) {
     struct timeval tv;
     struct timeval* timeoutval = nullptr;

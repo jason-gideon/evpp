@@ -29,6 +29,11 @@
 
 namespace evpp {
 
+  /*
+  封装了libevent，实现有点类似与memcahed，都是采用pipe去通知
+
+  */
+
 // This is the IO Event driving kernel. Reactor model.
 // This class is a wrapper of event_base but not only a wrapper.
 // It provides a simple way to run a IO Event driving loop.
@@ -37,7 +42,12 @@ class EVPP_EXPORT EventLoop : public ServerStatus {
 public:
     typedef std::function<void()> Functor;
 public:
+  /*内存创建eventbase*/
     EventLoop();
+
+    //显示构造函数，防止编译器将参数进行隐士转换
+    //直接运行eventbase
+
 
     // Build an EventLoop using an existing event_base object,
     // so we can embed an EventLoop object into the old applications based on libevent

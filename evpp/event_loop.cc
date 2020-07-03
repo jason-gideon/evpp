@@ -52,6 +52,11 @@ EventLoop::~EventLoop() {
     pending_functors_ = nullptr;
 }
 
+
+/*
+创建function的vector，这个是回调函数把...这c++11整这么多特性，到底有什么好处...
+然后对于一个eventloop有一个线程进行处理，watcher是用来看pipe中是否有待处理的事件
+*/
 void EventLoop::Init() {
     DLOG_TRACE;
     status_.store(kInitializing);
@@ -71,6 +76,8 @@ void EventLoop::Init() {
     status_.store(kInitialized);
 }
 
+//往watcher中注册watcher func，
+//watcher实际上是相当于 memchaed中的notify_recv_pipe
 void EventLoop::InitNotifyPipeWatcher() {
     // Initialized task queue notify pipe watcher
     watcher_.reset(new PipeEventWatcher(this, std::bind(&EventLoop::DoPendingFunctors, this)));
