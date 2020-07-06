@@ -57,6 +57,7 @@ bool EventWatcher::Watch(Duration timeout) {
         timeoutval = &tv;
     }
 
+    //可能是用于观察者模式，
     if (attached_) {
         // When InvokerTimer::periodic_ == true, EventWatcher::Watch will be called many times
         // so we need to remove it from event_base before we add it into event_base

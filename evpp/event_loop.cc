@@ -90,8 +90,14 @@ void EventLoop::InitNotifyPipeWatcher() {
 
 void EventLoop::Run() {
     DLOG_TRACE;
+
+    //原子操作中对某个值进行设置
     status_.store(kStarting);
     tid_ = std::this_thread::get_id(); // The actual thread id
+
+    //异步等待...?
+    //里面调用了watch的将事件加入event，是个timeout事件
+    //就是相当于让线程在这里进行等待
 
     int rc = watcher_->AsyncWait();
     assert(rc);
@@ -102,6 +108,7 @@ void EventLoop::Run() {
     // After everything have initialized, we set the status to kRunning
     status_.store(kRunning);
 
+    //这个应该就是让线程进行处理event
     rc = event_base_dispatch(evbase_);
     if (rc == 1) {
         LOG_ERROR << "event_base_dispatch error: no event registered";
@@ -109,6 +116,8 @@ void EventLoop::Run() {
         int serrno = errno;
         LOG_ERROR << "event_base_dispatch error " << serrno << " " << strerror(serrno);
     }
+
+    //线程退出，进行销毁
 
     // Make sure watcher_ does construct, initialize and destruct in the same thread.
     watcher_.reset();
@@ -122,6 +131,8 @@ void EventLoop::Stop() {
     assert(status_.load() == kRunning);
     status_.store(kStopping);
     DLOG_TRACE << "EventLoop::Stop";
+
+    //这里将stop插入处理函数，等待处理，
     QueueInLoop(std::bind(&EventLoop::StopInLoop, this));
 }
 
@@ -232,6 +243,8 @@ void EventLoop::RunInLoop(Functor&& functor) {
     }
 }
 
+//这里跟memcached中的有些不同，
+//1.这里这个notify不是经常会被调用，而是多线程处理的时候，等待处理函数处理完一批functor之后，才再notify
 void EventLoop::QueueInLoop(const Functor& cb) {
     DLOG_TRACE << "pending_functor_count_=" << pending_functor_count_ << " PendingQueueSize=" << GetPendingQueueSize() << " notified_=" << notified_.load();
     {
@@ -243,12 +256,20 @@ void EventLoop::QueueInLoop(const Functor& cb) {
         while (!pending_functors_->enqueue(cb)) {
         }
 #else
+      //把任务加入到业务处理，就跟memcached
         std::lock_guard<std::mutex> lock(mutex_);
         pending_functors_->emplace_back(cb);
 #endif
     }
     ++pending_functor_count_;
     DLOG_TRACE << "queued a new Functor. pending_functor_count_=" << pending_functor_count_ << " PendingQueueSize=" << GetPendingQueueSize() << " notified_=" << notified_.load();
+
+    /*
+    下面需要根据notified标志进行业务处理，
+    为了防止多线程调用notify()，
+
+    atomic中如果第二个线程
+    */
     if (!notified_.load()) {
         DLOG_TRACE << "call watcher_->Nofity() notified_.store(true)";
 
@@ -260,6 +281,7 @@ void EventLoop::QueueInLoop(const Functor& cb) {
         //  4. Then, some thread except thread2 call this QueueInLoop to push a task into the queue, and find notified_ is true, so there is no change to wakeup thread2 to execute this task
         notified_.store(true);
 
+        //通知处理线程启动器处理任务
         // Sometimes one thread invoke EventLoop::QueueInLoop(...), but anther
         // thread is invoking EventLoop::Stop() to stop this loop. At this moment
         // this loop maybe is stopping and the watcher_ object maybe has been
@@ -292,6 +314,8 @@ void EventLoop::QueueInLoop(Functor&& cb) {
     }
     ++pending_functor_count_;
     DLOG_TRACE << "queued a new Functor. pending_functor_count_=" << pending_functor_count_ << " PendingQueueSize=" << GetPendingQueueSize() << " notified_=" << notified_.load();
+
+    //notify为false
     if (!notified_.load()) {
         DLOG_TRACE << "call watcher_->Nofity() notified_.store(true)";
         notified_.store(true);
@@ -306,6 +330,7 @@ void EventLoop::QueueInLoop(Functor&& cb) {
     }
 }
 
+//这里是处理function的地方，从vector中获取很多业务处理函数，之后，再进行处理，但是在处理之前，先要设置notify
 void EventLoop::DoPendingFunctors() {
     DLOG_TRACE << "pending_functor_count_=" << pending_functor_count_ << " PendingQueueSize=" << GetPendingQueueSize() << " notified_=" << notified_.load();
 

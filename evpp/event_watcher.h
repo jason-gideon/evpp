@@ -21,7 +21,7 @@ public:
     void Cancel();
 
     // @brief :
-    // @param[IN] const Handler& cb - The callback which will be called when this event is canceled.
+    // @param[IN] const Handler& cb - The callback which will bez called when this event is canceled.
     // @return void -
     void SetCancelCallback(const Handler& cb);
 
@@ -51,6 +51,7 @@ protected:
 
 class EVPP_EXPORT PipeEventWatcher : public EventWatcher {
 public:
+  //evtloop扔进来只是要获取event_base
     PipeEventWatcher(EventLoop* loop, const Handler& handler);
     PipeEventWatcher(EventLoop* loop, Handler&& handler);
     ~PipeEventWatcher();

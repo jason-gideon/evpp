@@ -6,7 +6,7 @@
 #define GOOGLE_GLOG_DLL_DECL           // 使用静态glog库时，必须定义这个
 #define GLOG_NO_ABBREVIATED_SEVERITIES // 没这个编译会出错,传说因为和Windows.h冲突
 
-#include <glog/logging.h>
+//#include <glog/logging.h>
 
 #ifdef GOOGLE_STRIP_LOG
 
